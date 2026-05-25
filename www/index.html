@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Animaux Kids</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--gold:#F5C842;--ink:#1A1A2E;--ink2:#16213E;--card:#0F3460;--accent:#E94560;--green:#2ECC71;--fs:1}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--ink)}
+#app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;background:var(--ink);overflow:hidden}
+.header{padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:10px;background:var(--ink2);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding-left:16px;padding-right:16px;border-bottom:1px solid rgba(245,200,66,0.2)}
+.header-title{font-family:'Georgia',serif;font-size:calc(20px * var(--fs));color:var(--gold);font-weight:bold;letter-spacing:1px}
+.header-lang{background:rgba(245,200,66,0.15);border:1px solid var(--gold);border-radius:20px;padding:5px 12px;font-size:calc(18px * var(--fs));cursor:pointer;color:var(--gold)}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--ink2);display:flex;border-top:1px solid rgba(245,200,66,0.2);z-index:100}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;opacity:0.5;transition:opacity .2s}
+.tab.active{opacity:1}
+.tab-icon{font-size:calc(22px * var(--fs))}
+.tab-label{font-size:calc(9px * var(--fs));color:var(--gold);text-transform:uppercase;letter-spacing:0.5px}
+.animals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px}
+.animal-card{background:var(--card);border-radius:16px;overflow:hidden;border:2px solid transparent;transition:border-color .15s,transform .1s;position:relative;cursor:default}
+.animal-card.playing{border-color:var(--gold);animation:pulse 0.8s ease}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(245,200,66,0.6)}100%{box-shadow:0 0 0 14px rgba(245,200,66,0)}}
+.animal-img-wrap{width:100%;aspect-ratio:1;background:#0a1628;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+.animal-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.animal-emoji{font-size:56px;line-height:1;pointer-events:none}
+.animal-name{text-align:center;padding:8px 4px 6px;font-size:calc(15px * var(--fs));color:#fff;font-weight:bold;line-height:1.2;pointer-events:none}
+.animal-sound-btn{width:100%;padding:10px 0;background:rgba(245,200,66,0.2);border:none;border-top:1px solid rgba(245,200,66,0.3);font-size:calc(22px * var(--fs));cursor:pointer;color:var(--gold);display:flex;align-items:center;justify-content:center;gap:6px}
+.animal-sound-btn:active{background:rgba(245,200,66,0.4)}
+.name-toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--gold);color:var(--ink);font-size:calc(28px * var(--fs));font-weight:bold;padding:12px 32px;border-radius:40px;z-index:300;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;font-family:'Georgia',serif}
+.name-toast.show{opacity:1}
+.quiz-wrap{padding:16px}
+.quiz-card{background:var(--card);border-radius:20px;padding:20px;text-align:center;margin-bottom:16px}
+.quiz-question{color:var(--gold);font-size:calc(16px * var(--fs));font-weight:bold;margin-bottom:16px}
+.quiz-sound-btn{width:110px;height:110px;background:rgba(245,200,66,0.15);border:3px solid var(--gold);border-radius:50%;font-size:56px;cursor:pointer;margin:0 auto 20px;display:flex;align-items:center;justify-content:center}
+.quiz-sound-btn:active{background:rgba(245,200,66,0.3)}
+.quiz-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quiz-choice{background:#0a1628;border:2px solid rgba(255,255,255,0.1);border-radius:14px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;align-items:center}
+.quiz-choice:active{transform:scale(0.96)}
+.quiz-choice.correct{border-color:var(--green);background:rgba(46,204,113,0.15)}
+.quiz-choice.wrong{border-color:var(--accent);background:rgba(233,69,96,0.15)}
+.quiz-choice-img{width:100%;aspect-ratio:1;background:#0a1628;display:flex;align-items:center;justify-content:center;font-size:52px;overflow:hidden}
+.quiz-choice-img img{width:100%;height:100%;object-fit:cover}
+.quiz-choice-name{padding:8px;color:#fff;font-size:calc(13px * var(--fs));font-weight:bold}
+.quiz-score{background:var(--card);border-radius:16px;padding:14px;display:flex;justify-content:space-around;margin-bottom:16px}
+.score-item{text-align:center}
+.score-num{font-size:calc(28px * var(--fs));color:var(--gold);font-weight:bold}
+.score-lab{font-size:calc(10px * var(--fs));color:rgba(255,255,255,0.5);text-transform:uppercase}
+.quiz-next{width:100%;padding:14px;background:var(--gold);border-radius:14px;border:none;font-size:calc(16px * var(--fs));font-weight:bold;color:var(--ink);cursor:pointer;margin-top:12px}
+.settings-wrap{padding:16px}
+.settings-title{color:var(--gold);font-size:calc(13px * var(--fs));text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:bold}
+.settings-apps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.app-item{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+.app-icon{width:72px;height:72px;border-radius:16px;background:var(--card);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:9px;color:rgba(255,255,255,0.2);text-align:center;padding:2px}
+.app-icon img{width:72px;height:72px;border-radius:16px;object-fit:cover}
+.app-name{font-size:10px;color:rgba(255,255,255,0.7);text-align:center;line-height:1.3;max-width:80px}
+.settings-badge{display:block;margin:0 auto;width:160px}
+.panel{display:none}.panel.active{display:block}
+/* ZOOM PLEIN ÉCRAN */
+.zoom-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--ink);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+.zoom-overlay.open{display:flex}
+.zoom-img{width:80vw;height:80vw;max-width:360px;max-height:360px;border-radius:24px;background:#0a1628;display:flex;align-items:center;justify-content:center;overflow:hidden;animation:zoomIn .25s ease;cursor:pointer}
+@keyframes zoomIn{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
+.zoom-img img{width:100%;height:100%;object-fit:cover;border-radius:24px}
+.zoom-emoji{font-size:120px;line-height:1}
+.zoom-name{font-family:'Georgia',serif;font-size:calc(36px * var(--fs));color:var(--gold);font-weight:bold;text-align:center}
+.zoom-sound{width:80px;height:80px;background:rgba(245,200,66,0.2);border:3px solid var(--gold);border-radius:50%;font-size:36px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.zoom-sound:active{background:rgba(245,200,66,0.4)}
+.zoom-close{position:absolute;top:calc(16px + env(safe-area-inset-top));right:20px;font-size:32px;color:var(--gold);cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-title">🐾 Animaux Kids</div>
+    <div class="header-lang" id="langBtn">🇫🇷</div>
+  </div>
+  <div class="main">
+    <div id="tab-galerie" class="panel active">
+      <div class="animals-grid" id="animalsGrid"></div>
+    </div>
+    <div id="tab-quiz" class="panel">
+      <div class="quiz-wrap" id="quizWrap"></div>
+    </div>
+    <div id="tab-settings" class="panel">
+      <div class="settings-wrap" id="settingsWrap"></div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab active" id="tab-btn-galerie" onclick="switchTab('galerie')">
+      <div class="tab-icon">🐾</div>
+      <div class="tab-label" data-fr="Animaux" data-en="Animals">Animaux</div>
+    </div>
+    <div class="tab" id="tab-btn-quiz" onclick="switchTab('quiz')">
+      <div class="tab-icon">🎯</div>
+      <div class="tab-label" data-fr="Quiz" data-en="Quiz">Quiz</div>
+    </div>
+    <div class="tab" id="tab-btn-settings" onclick="switchTab('settings')">
+      <div class="tab-icon">📱</div>
+      <div class="tab-label" data-fr="Applis" data-en="Apps">Applis</div>
+    </div>
+  </div>
+</div>
+<div class="name-toast" id="nameToast"></div>
+<div class="zoom-overlay" id="zoomOverlay">
+  <div class="zoom-close" id="zoomClose">✕</div>
+  <div class="zoom-img" id="zoomImg"></div>
+  <div class="zoom-name" id="zoomName"></div>
+  <div class="zoom-sound" id="zoomSound">🔊</div>
+</div>
+
+<script>
+var LANG = localStorage.getItem('animaux_lang') || 'fr';
+
+var ANIMALS = [
+  {id:'vache',     emoji:'🐄', fr:'Vache',      en:'Cow',        son:'assets/sounds/vache.mp3'},
+  {id:'cheval',    emoji:'🐴', fr:'Cheval',     en:'Horse',      son:'assets/sounds/cheval.mp3'},
+  {id:'cochon',    emoji:'🐷', fr:'Cochon',     en:'Pig',        son:'assets/sounds/cochon.mp3'},
+  {id:'mouton',    emoji:'🐑', fr:'Mouton',     en:'Sheep',      son:'assets/sounds/mouton.mp3'},
+  {id:'chevre',    emoji:'🐐', fr:'Chèvre',     en:'Goat',       son:'assets/sounds/chevre.mp3'},
+  {id:'coq',       emoji:'🐓', fr:'Coq',        en:'Rooster',    son:'assets/sounds/coq.mp3'},
+  {id:'poule',     emoji:'🐔', fr:'Poule',      en:'Hen',        son:'assets/sounds/poule.mp3'},
+  {id:'canard',    emoji:'🦆', fr:'Canard',     en:'Duck',       son:'assets/sounds/canard.mp3'},
+  {id:'chat',      emoji:'🐱', fr:'Chat',       en:'Cat',        son:'assets/sounds/chat.mp3'},
+  {id:'chien',     emoji:'🐶', fr:'Chien',      en:'Dog',        son:'assets/sounds/chien.mp3'},
+  {id:'grenouille',emoji:'🐸', fr:'Grenouille', en:'Frog',       son:'assets/sounds/grenouille.mp3'},
+  {id:'hibou',     emoji:'🦉', fr:'Hibou',      en:'Owl',        son:'assets/sounds/hibou.mp3'},
+  {id:'merle',     emoji:'🐦‍⬛', fr:'Merle',      en:'Blackbird',  son:'assets/sounds/merle.mp3'},
+  {id:'rossignol', emoji:'🪺', fr:'Rossignol',  en:'Nightingale',son:'assets/sounds/rossignol.mp3'},
+  {id:'cigale',    emoji:'🦗', fr:'Cigale',     en:'Cicada',     son:'assets/sounds/cigale.mp3'},
+  {id:'grillon',   emoji:'🦗', fr:'Grillon',    en:'Cricket',    son:'assets/sounds/grillon.mp3'},
+  {id:'bourdon',   emoji:'🐝', fr:'Bourdon',    en:'Bumblebee',  son:'assets/sounds/bourdon.mp3'},
+  {id:'mouche',    emoji:'🪰', fr:'Mouche',     en:'Fly',        son:'assets/sounds/mouche.mp3'}
+];
+
+var APPS = [
+  {id:6772548541, name:'Lettres Kids',  placeholder:'🔤'},
+  {id:6772546976, name:'Chiffres Kids', placeholder:'🔢'},
+  {id:6772468506, name:'Mahjong Kids',  placeholder:'🀄'}
+];
+
+function nameOf(a){ return LANG==='fr' ? a.fr : a.en; }
+
+function toggleLang(){
+  LANG = LANG==='fr'?'en':'fr';
+  localStorage.setItem('animaux_lang', LANG);
+  document.getElementById('langBtn').textContent = LANG==='fr'?'🇫🇷':'🇬🇧';
+  document.querySelectorAll('[data-fr]').forEach(function(el){
+    el.textContent = LANG==='fr' ? el.getAttribute('data-fr') : el.getAttribute('data-en');
+  });
+  renderGalerie();
+  if(document.getElementById('tab-quiz').classList.contains('active')) renderQuiz();
+}
+
+var _cri = null;
+var _criPath = null;
+function playCri(sonPath, cardEl){
+  // Si même son en cours → stop
+  if(_cri && _criPath === sonPath){
+    _cri.pause(); _cri.currentTime=0; _cri=null; _criPath=null;
+    if(cardEl) cardEl.classList.remove('playing');
+    return;
+  }
+  if(_cri){ _cri.pause(); _cri.currentTime=0; _cri=null; _criPath=null; }
+  if(cardEl){ cardEl.classList.add('playing'); setTimeout(function(){ cardEl.classList.remove('playing'); }, 1200); }
+  _cri = new Audio(sonPath);
+  _criPath = sonPath;
+  _cri.onended = function(){ _cri=null; _criPath=null; };
+  _cri.play().catch(function(e){ console.error('son error',e); });
+}
+
+var _speaking = false;
+function speakName(name){
+  if(_speaking) return;
+  if(!window.speechSynthesis) return;
+  _speaking = true;
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(name);
+  u.lang = LANG==='fr' ? 'fr-FR' : 'en-GB';
+  u.rate = 0.85; u.pitch = 1.1;
+  u.onend = function(){ _speaking=false; };
+  u.onerror = function(){ _speaking=false; };
+  try{ window.speechSynthesis.speak(u); } catch(e){ _speaking=false; }
+}
+
+var toastTimer = null;
+function showName(name){
+  var t = document.getElementById('nameToast');
+  t.textContent = name;
+  t.classList.add('show');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 1800);
+}
+
+var thumbCache = {}, urlCache = {};
+// ─── ZOOM PLEIN ÉCRAN ─────────────────────────────────────────────────────────
+var zoomAnimal = null;
+function openZoom(animal){
+  zoomAnimal = animal;
+  document.getElementById('zoomName').textContent = nameOf(animal);
+  speakName(nameOf(animal));
+  var imgDiv = document.getElementById('zoomImg');
+  if(urlCache[animal.id]){
+    imgDiv.innerHTML = '<img src="'+urlCache[animal.id]+'">';
+  } else if(thumbCache[animal.id]){
+    imgDiv.innerHTML = '<img src="'+thumbCache[animal.id]+'">';
+  } else {
+    imgDiv.innerHTML = '<div class="zoom-emoji">'+animal.emoji+'</div>';
+  }
+  document.getElementById('zoomOverlay').classList.add('open');
+}
+function closeZoom(){
+  document.getElementById('zoomOverlay').classList.remove('open');
+  if(_cri){ _cri.pause(); _cri.currentTime=0; _cri=null; }
+  zoomAnimal = null;
+}
+
+function renderGalerie(){
+  var g = document.getElementById('animalsGrid');
+  g.innerHTML = '';
+  ANIMALS.forEach(function(a){
+    (function(animal){
+      var card = document.createElement('div');
+      card.className = 'animal-card';
+      card.id = 'card-'+animal.id;
+      card.innerHTML =
+        '<div class="animal-img-wrap" id="imgwrap-'+animal.id+'">'+
+          '<div class="animal-emoji">'+animal.emoji+'</div>'+
+        '</div>'+
+        '<div class="animal-name">'+nameOf(animal)+'</div>'+
+        '<div class="animal-sound-btn">🔊</div>';
+
+      var sndBtn = card.querySelector('.animal-sound-btn');
+
+      // Tap zone image = zoom plein écran
+      var imgWrap = card.querySelector('.animal-img-wrap');
+      imgWrap.addEventListener('touchend', function(e){
+        e.preventDefault(); e.stopPropagation();
+        openZoom(animal);
+      });
+      imgWrap.addEventListener('click', function(e){
+        e.stopPropagation();
+        openZoom(animal);
+      });
+
+      // Bouton son = jouer le cri
+      sndBtn.addEventListener('touchend', function(e){
+        e.preventDefault(); e.stopPropagation();
+        playCri(animal.son, card);
+      });
+      sndBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        playCri(animal.son, card);
+      });
+
+      g.appendChild(card);
+      loadThumb(animal);
+    })(a);
+  });
+}
+
+function loadThumb(a){
+  if(thumbCache[a.id]){ setThumbImg(a.id, thumbCache[a.id]); return; }
+  if(typeof CapacitorHttp === 'undefined') return;
+  CapacitorHttp.get({
+    url:'https://fr.wikipedia.org/w/api.php?action=query&titles=File:'+encodeURIComponent(a.wf||'')+'&prop=pageimages&pithumbsize=300&format=json',
+    headers:{}
+  }).then(function(r){
+    var data = typeof r.data==='string'?JSON.parse(r.data):r.data;
+    var pages = data.query&&data.query.pages;
+    if(!pages) return;
+    var page = Object.values(pages)[0];
+    var url = page.thumbnail&&page.thumbnail.source;
+    if(url){ thumbCache[a.id]=url; setThumbImg(a.id,url); }
+  }).catch(function(){});
+}
+
+function setThumbImg(id, url){
+  var wrap = document.getElementById('imgwrap-'+id);
+  if(!wrap) return;
+  var img = new Image();
+  img.onload = function(){ wrap.innerHTML=''; wrap.appendChild(img); };
+  img.style.cssText='width:100%;height:100%;object-fit:cover';
+  img.src = url;
+}
+
+var quizScore = {ok:0, total:0}, quizCurrent = null, quizAnswered = false;
+
+function renderQuiz(){
+  var w = document.getElementById('quizWrap');
+  var scoreHtml = '<div class="quiz-score">'+
+    '<div class="score-item"><div class="score-num">'+quizScore.ok+'</div><div class="score-lab">'+(LANG==='fr'?'Bons':'Correct')+'</div></div>'+
+    '<div class="score-item"><div class="score-num">'+quizScore.total+'</div><div class="score-lab">'+(LANG==='fr'?'Joués':'Played')+'</div></div>'+
+    '<div class="score-item"><div class="score-num">'+(quizScore.total>0?Math.round(100*quizScore.ok/quizScore.total):0)+'%</div><div class="score-lab">Score</div></div>'+
+  '</div>';
+  quizCurrent = ANIMALS[Math.floor(Math.random()*ANIMALS.length)];
+  var others = ANIMALS.filter(function(x){return x.id!==quizCurrent.id;});
+  others.sort(function(){return Math.random()-0.5;});
+  var choices = [quizCurrent,others[0],others[1],others[2]];
+  choices.sort(function(){return Math.random()-0.5;});
+  quizAnswered = false;
+  var choicesHtml = choices.map(function(a){
+    var img = thumbCache[a.id]?'<img src="'+thumbCache[a.id]+'" style="width:100%;height:100%;object-fit:cover">':'<div style="font-size:52px;text-align:center;padding:10px">'+a.emoji+'</div>';
+    return '<div class="quiz-choice" id="qc-'+a.id+'" onclick="quizAnswer(\''+a.id+'\')">'+
+      '<div class="quiz-choice-img">'+img+'</div>'+
+      '<div class="quiz-choice-name">'+nameOf(a)+'</div>'+
+    '</div>';
+  }).join('');
+  w.innerHTML = scoreHtml+
+    '<div class="quiz-card">'+
+      '<div class="quiz-question">'+(LANG==='fr'?'Quel animal fait ce son ?':'Which animal makes this sound?')+'</div>'+
+      '<div class="quiz-sound-btn" id="quizSndBtn">🔊</div>'+
+      '<div class="quiz-choices">'+choicesHtml+'</div>'+
+      '<div id="qfb" style="margin-top:12px;font-size:22px;text-align:center;min-height:30px"></div>'+
+    '</div>';
+  var qb = document.getElementById('quizSndBtn');
+  qb.addEventListener('touchend',function(e){ e.preventDefault(); playCri(quizCurrent.son, null); });
+  qb.addEventListener('click',function(){ playCri(quizCurrent.son, null); });
+  setTimeout(function(){ playCri(quizCurrent.son, null); }, 400);
+}
+
+function quizAnswer(id){
+  if(quizAnswered) return;
+  quizAnswered = true;
+  quizScore.total++;
+  var ok = id===quizCurrent.id;
+  if(ok) quizScore.ok++;
+  document.getElementById('qc-'+quizCurrent.id).classList.add('correct');
+  if(!ok) document.getElementById('qc-'+id).classList.add('wrong');
+  document.getElementById('qfb').innerHTML =
+    (ok?'<span style="color:#2ECC71;font-size:32px">✓ '+(LANG==='fr'?'Bravo !':'Well done!')+'</span>':
+       '<span style="color:#E94560">✗ '+(LANG==='fr'?'C\'est ':'It\'s a ')+nameOf(quizCurrent)+'</span>')+
+    '<br><button class="quiz-next" onclick="renderQuiz()">'+(LANG==='fr'?'Animal suivant →':'Next animal →')+'</button>';
+}
+
+function renderSettings(){
+  var w = document.getElementById('settingsWrap');
+  w.innerHTML = '<div class="settings-title">'+(LANG==='fr'?'Autres applications':'Other apps')+'</div>'+
+    '<div class="settings-apps-grid" id="appsGrid"></div>'+
+    '<a href="https://apps.apple.com/developer/michel-garlandat/id368771203" target="_blank">'+
+    '<img class="settings-badge" src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/fr-fr" alt="App Store"></a>';
+  var grid = document.getElementById('appsGrid');
+  APPS.forEach(function(app){
+    var numId = app.id;
+    var item = document.createElement('div');
+    item.className = 'app-item';
+    var img = document.createElement('img');
+    img.style.cssText = 'width:72px;height:72px;border-radius:16px;object-fit:cover';
+    var iconDiv = document.createElement('div');
+    iconDiv.className = 'app-icon';
+    iconDiv.appendChild(img);
+    var nameDiv = document.createElement('div');
+    nameDiv.className = 'app-name';
+    nameDiv.textContent = app.name;
+    item.appendChild(iconDiv);
+    item.appendChild(nameDiv);
+    item.onclick = function(){ window.open('https://apps.apple.com/app/id'+numId,'_blank'); };
+    grid.appendChild(item);
+    var cb = 'itcb'+numId;
+    window[cb] = function(d){ if(d.results&&d.results[0]) img.src = d.results[0].artworkUrl60; };
+    var s = document.createElement('script');
+    s.src = 'https://itunes.apple.com/lookup?id='+numId+'&callback='+cb;
+    document.body.appendChild(s);
+  });
+}
+
+function switchTab(name){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('tab-btn-'+name).classList.add('active');
+  if(name==='quiz') renderQuiz();
+  if(name==='settings') renderSettings();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  document.getElementById('langBtn').addEventListener('touchend',function(e){ e.preventDefault(); toggleLang(); });
+  document.getElementById('langBtn').addEventListener('click', toggleLang);
+  document.getElementById('langBtn').textContent = LANG==='fr'?'🇫🇷':'🇬🇧';
+
+  // Zoom overlay
+  document.getElementById('zoomClose').addEventListener('touchend',function(e){ e.preventDefault(); closeZoom(); });
+  document.getElementById('zoomClose').addEventListener('click', closeZoom);
+  document.getElementById('zoomOverlay').addEventListener('touchend',function(e){ if(e.target===this) closeZoom(); });
+  document.getElementById('zoomOverlay').addEventListener('click',function(e){ if(e.target===this) closeZoom(); });
+  document.getElementById('zoomSound').addEventListener('touchend',function(e){
+    e.preventDefault(); e.stopPropagation();
+    if(zoomAnimal){ _speaking=false; playCri(zoomAnimal.son, null); }
+  });
+  document.getElementById('zoomSound').addEventListener('click',function(e){
+    e.stopPropagation();
+    if(zoomAnimal){ _speaking=false; playCri(zoomAnimal.son, null); }
+  });
+  document.getElementById('zoomImg').addEventListener('touchend',function(e){
+    e.preventDefault(); e.stopPropagation();
+    if(zoomAnimal){ _speaking=false; speakName(nameOf(zoomAnimal)); }
+  });
+  document.getElementById('zoomImg').addEventListener('click',function(e){
+    e.stopPropagation();
+    if(zoomAnimal){ _speaking=false; speakName(nameOf(zoomAnimal)); }
+  });
+
+  renderGalerie();
+});
+</script>
+</body>
+</html>
